@@ -88,7 +88,12 @@ uv run python tools/tools_generate_conformations.py \
 uv run python tools/tools_calculate_free_energy_landscape.py
 ```
 
-2. Compute population coverage scores:
+2. Compute the energy overlap
+```bash
+uv run python tools/tools_calculate_fel_overlpas.py --generated-file-path /mnt/dna01/library2/caspdynamics/generated_data 
+```
+
+3. Compute population coverage scores:
 
 ```bash
 # Protein Conformational Plausibility Score (PCPS)
@@ -100,6 +105,7 @@ uv run python tools/tools_pcpm_individual.py
 # Aggregate PCPM distribution
 uv run python tools/tools_pcpm_distribution.py
 ```
+
 
 ## Citation
 If you use ProteinConformers in your research, please cite:
