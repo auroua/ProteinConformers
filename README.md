@@ -160,7 +160,7 @@ uv run python tools/tools_pcpm_distribution.py
 If you use ProteinConformers in your research, please cite:
 ```bibtex
 @inproceedings{ProteinConformers,
-  author    = {Yihang Zhou, Chen Wei, Minghao Sun, Jin Song, Yang Li, Lin Wang and Yang Zhang},
+  author    = {Yihang Zhou, Chen Wei, Matthew M. Sun, Jin Song, Yang Li, Lin Wang and Yang Zhang},
   title     = {ProteinConformers: Benchmark Dataset for Simulating Protein Conformational Landscape Diversity and Plausibility},
   booktitle = {Proceedings of the 39th Conference on Neural Information Processing Systems (NeurIPS 2025)},
   year      = {2025},
