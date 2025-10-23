@@ -82,6 +82,55 @@ uv run python tools/tools_generate_conformations.py \
 ```
 
 ### Evaluation utilities
+
+#### Comprehensive Decoy Ensemble Evaluation
+
+The `src/eval` module provides a comprehensive pipeline for evaluating the quality and similarity of protein decoy ensembles against ground truth conformational ensembles (typically from MD simulations). The evaluation includes multiple metrics inspired by the ESMDiff paper and common structural bioinformatics practices:
+
+**Available Metrics:**
+- **Jensen-Shannon Divergence (JS-Div):**
+  - `JS-PwD`: Based on C-alpha pairwise distance distributions
+  - `JS-Rg`: Based on Radius of Gyration distributions  
+  - `JS-TIC`: Based on Time-lagged Independent Components (derived from pairwise distances)
+- **Ensemble Coverage:**
+  - `RMSD-ens`: Average minimum C-alpha RMSD of GT structures to the generated ensemble
+  - `TM-ens`: Average maximum TM-score of GT structures to the generated ensemble
+- **Structural Validity:**
+  - `Validity_Model`: Fraction of clash-free structures in the generated ensemble
+
+**Additional Dependencies for Evaluation:**
+```bash
+# Install evaluation-specific dependencies
+pip install biopython deeptime
+
+# Download and compile TMalign (required for TM-ens metric)
+# Get TMalign from: https://zhanggroup.org/TM-align/
+```
+
+**Running Evaluation:**
+```bash
+# Basic evaluation example
+uv run python src/eval/eval_decoy_metrics.py \
+    --protein_id T1033 \
+    --model_name esmdiff \
+    --native_filter all \
+    --model_decoys_root_dir /path/to/model/decoys \
+    --native_pdb_root_dir /path/to/native/pdbs \
+    --gt_decoys_root_dir /path/to/ground/truth \
+    --tmalign_path /path/to/TMalign_cpp \
+    --output_dir /path/to/output
+
+# Options:
+# --native_filter: Filter decoys by TM-score to native (all/near/non)
+# --tmscore_threshold: TM-score threshold for filtering (default: 0.5)
+# --skip_tica: Skip JS-TIC calculation (time-consuming)
+# --skip_tmens: Skip TM-ens calculation (requires TMalign)
+```
+
+For detailed documentation and examples, see `src/eval/readme_eval.md`.
+
+#### Other Evaluation Tools
+
 1. Compute the free-energy landscape:
 
 ```bash
