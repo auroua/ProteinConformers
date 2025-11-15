@@ -192,7 +192,7 @@ def get_all(x):
     return cbmap,camap,  omgmap,psimap,thetamap,  ncmap,canccamap,cancmap,cacnmap
 
 def virtual_CB(n, ca, c):
-    # MDTraj 自带函数：md.geometry.geometry.virtual_center(...) 也行
+    # The built-in function `md.geometry.geometry.virtual_center(...)` in MDTraj also works.
     b = ca - n
     c_vect = c - ca
     a = np.cross(b, c_vect)
@@ -210,7 +210,7 @@ def pdb_to_true_x(pdb_path: str, atom_order=['N', 'CA', 'C', 'CB']) -> torch.Ten
             if atom.n_atoms > 0:
                 atoms.append(atom.positions[0])
             else:
-                # atoms.append(np.full(3, np.nan))  # 缺失时补 NaN
+                # atoms.append(np.full(3, np.nan))  # NaN
                 atoms.append(virtual_CB(*res.atoms.select_atoms("name N CA C").positions))
         coords.append(atoms)
     coords = np.array(coords)  # shape = [L, 4, 3]
@@ -218,9 +218,9 @@ def pdb_to_true_x(pdb_path: str, atom_order=['N', 'CA', 'C', 'CB']) -> torch.Ten
 
 def torch_to_np16_upper(t: torch.Tensor) -> np.ndarray:
     """
-    把 2D 对称矩阵的 torch.Tensor
-    → numpy.float16
-    → 仅保留上三角(含对角)并拉平成 1‑D 向量
+    Convert a 2D symmetric matrix from torch.Tensor to numpy.float16,
+    then retain only the upper triangular portion (including the diagonals)
+    and flatten it into a 1-D vector.
     """
     arr = t.to(torch.float16).cpu().numpy()
     idx = np.triu_indices(arr.shape[0])
@@ -242,8 +242,8 @@ if __name__ == "__main__":
     df = pd.read_csv(args.input_dp)
     for casp_id, df_sub in df.groupby("casp_id"):
         os.makedirs(os.path.dirname(args.output_dp), exist_ok=True)
-        base, _ = os.path.splitext(args.output_dp)          # 去掉末尾 .pkl（若有）
-        out_file = f"{base}_{casp_id}.pkl"                  # 加上 casp_id
+        base, _ = os.path.splitext(args.output_dp)          # Remove the .pkl extension at the end (if present).
+        out_file = f"{base}_{casp_id}.pkl"                  # add casp_id
         if os.path.exists(out_file):
             continue
         else:
@@ -251,9 +251,6 @@ if __name__ == "__main__":
             print(f"{casp_id} is processing.\n")
             for idx, row in tqdm(df_sub.iterrows(), total=len(df_sub), desc="Processing decoys"):
                 maps_dict_tmp = {}
-                ######
-                ### 关键是这里改了，pdb_path是待测decoy的绝对路径
-                ######
                 pdb_path = row["decoy"]  # ensure basename only
                 decoy_id = os.path.basename(pdb_path)
             

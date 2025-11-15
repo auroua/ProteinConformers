@@ -47,20 +47,20 @@ def align_and_crop(matrix1, matrix2, seq1, seq2):
     """
     Align seq1 and seq2, then crop BOTH matrix1 and matrix2 to the positions where
     both sequences have non-gap residues. Return (cropped_matrix1, cropped_matrix2).
-    兼容 torch / numpy；索引只打在维度 1/2 上。
+    Compatible with torch/numpy; indexes are only applied to dimension 1/2.
     """
-    # 形状检查：都应是 (4, L, L)
+    # Shape check: All should be (4, L, L)
     assert matrix1.shape[0] == 4 and matrix1.shape[1] == matrix1.shape[2], f"matrix1 bad shape {tuple(matrix1.shape)}"
     assert matrix2.shape[0] == 4 and matrix2.shape[1] == matrix2.shape[2], f"matrix2 bad shape {tuple(matrix2.shape)}"
-    # 用矩阵边长限制序列，避免 len(seq) 与矩阵边长不一致
+    # Constrain the sequence using the matrix side length to avoid len(seq) being inconsistent with the matrix side length.
     N1 = int(matrix1.shape[1])
     N2 = int(matrix2.shape[1])
     seq1_use = seq1[:N1]
     seq2_use = seq2[:N2]
-    # 全局比对
+    # Global comparison
     alignment = pairwise2.align.globalxx(seq1_use, seq2_use)[0]
     a1, a2 = alignment.seqA, alignment.seqB
-    # 收集“双方都不是 gap”的列。分别记录落在 seq1_use 和 seq2_use 的原始索引
+    # Collect columns where neither is a gap. Record the original indexes falling on seq1_use and seq2_use respectively.
     idx1, idx2 = [], []
     i1 = i2 = 0
     for c1, c2 in zip(a1, a2):
@@ -73,7 +73,7 @@ def align_and_crop(matrix1, matrix2, seq1, seq2):
             i2 += 1
     if len(idx1) == 0:
         raise ValueError("No aligned residue positions between seq1 and seq2.")
-    # 边界裁剪，避免越界
+    # Boundary clipping to prevent out-of-bounds movement.
     if isinstance(matrix1, torch.Tensor):
         t_idx1 = torch.tensor(idx1, dtype=torch.long, device=matrix1.device)
         t_idx2 = torch.tensor(idx2, dtype=torch.long, device=matrix2.device)
@@ -81,11 +81,11 @@ def align_and_crop(matrix1, matrix2, seq1, seq2):
         t_idx2 = t_idx2[(t_idx2 >= 0) & (t_idx2 < N2)]
         if t_idx1.numel() == 0 or t_idx2.numel() == 0:
             raise ValueError("Aligned indices empty after bounds check.")
-        # 只在维度 1/2 上索引，避免高级索引歧义
+        # Index only on dimension 1/2 to avoid ambiguity
         cropped_matrix1 = matrix1.index_select(1, t_idx1).index_select(2, t_idx1)
         cropped_matrix2 = matrix2.index_select(1, t_idx2).index_select(2, t_idx2)
     else:
-        # numpy 情况
+        # numpy 
         n_idx1 = np.asarray(idx1, dtype=np.int64)
         n_idx2 = np.asarray(idx2, dtype=np.int64)
         n_idx1 = n_idx1[(n_idx1 >= 0) & (n_idx1 < N1)]
@@ -94,14 +94,15 @@ def align_and_crop(matrix1, matrix2, seq1, seq2):
             raise ValueError("Aligned indices empty after bounds check.")
         cropped_matrix1 = matrix1[:, n_idx1][:, :, n_idx1]
         cropped_matrix2 = matrix2[:, n_idx2][:, :, n_idx2]
-    # 两边都会变成 (4, K, K)，K 为对齐后共同的非 gap 列数
+    # Both sides will become (4, K, K), where K is the number of common non-gap columns after alignment.
     return cropped_matrix1, cropped_matrix2
 
 
 
 def cosine_similarity_across_channels_torch(matrix1: torch.Tensor, matrix2: torch.Tensor) -> torch.Tensor:
     """
-    计算两个形状为 (4, N, N) 的张量在每个 (i, j) 点上的通道维度余弦相似度，并对 N×N 平均。
+    Calculate the channel dimension cosine similarity of 
+    two tensors of shape (4, N, N) at each point (i, j) and average it over N×N.
 
     :param matrix1: torch.Tensor of shape (4, N, N)
     :param matrix2: torch.Tensor of shape (4, N, N)
@@ -110,11 +111,10 @@ def cosine_similarity_across_channels_torch(matrix1: torch.Tensor, matrix2: torc
     assert matrix1.shape == matrix2.shape, "两个矩阵形状必须一致"
     assert matrix1.shape[0] == 4, "矩阵的第一个维度应为 4"
 
-    # 展开为 (4, N*N)，然后转置为 (N*N, 4)
     vec1 = matrix1.view(4, -1).T  # shape: (N*N, 4)
     vec2 = matrix2.view(4, -1).T  # shape: (N*N, 4)
 
-    # F.cosine_similarity 会按最后一个维度计算余弦相似度
+    # F.cosine_similarity calculates cosine similarity based on the last dimension.
     sim = F.cosine_similarity(vec1, vec2, dim=-1)  # shape: (N*N,)
     return sim.mean()
 
@@ -123,28 +123,28 @@ def cosine_similarity_across_first_three_channels(
     matrix2: torch.Tensor
 ) -> torch.Tensor:
     """
-    计算两个形状为 (4, N, N) 的张量在前三个通道维度上的余弦相似度，并对 N×N 点平均。
+    Calculate the cosine similarity of two tensors of shape (4, N, N) 
+    across the first three channel dimensions and average it over N×N points.
 
     :param matrix1: torch.Tensor of shape (4, N, N)
     :param matrix2: torch.Tensor of shape (4, N, N)
-    :return: scalar tensor，前三通道平均余弦相似度
+    :return: scalar tensor
     """
-    # 检查输入维度
-    assert matrix1.shape == matrix2.shape, "两个矩阵形状必须一致"
-    assert matrix1.dim() == 3 and matrix1.shape[0] == 4, "矩阵应为 (4, N, N)"
+    # Check input dimensions
+    assert matrix1.shape == matrix2.shape, "The two matrices must have the same shape."
+    assert matrix1.dim() == 3 and matrix1.shape[0] == 4, "The matrix should be (4, N, N)."
 
-    # 仅取前三个通道
+    # Only the first three channels are used.
     m1 = matrix1[:3]  # shape: (3, N, N)
     m2 = matrix2[:3]  # shape: (3, N, N)
 
-    # 展开为 (3, N*N)，然后转置为 (N*N, 3)
+    # Expand to (3, N*N), then transpose to (N*N, 3).
     vec1 = m1.view(3, -1).T  # shape: (N*N, 3)
     vec2 = m2.view(3, -1).T  # shape: (N*N, 3)
 
-    # 计算每个点在通道维度上的余弦相似度
+    # Calculate the cosine similarity of each point along the channel dimension.
     sim = F.cosine_similarity(vec1, vec2, dim=-1)  # shape: (N*N,)
 
-    # 返回所有点的平均相似度
     return sim.mean()
 
 
@@ -154,27 +154,26 @@ def rbf_mahalanobis_similarity_first_three_channels(
     eps: float = 1e-6
 ) -> torch.Tensor:
     """
-    使用“马氏距离 + RBF”计算两个 (4, N, N) 张量在前三个通道上的相似度：
+    Calculate the similarity of two (4, N, N) tensors across the first three channels using Mahalanobis distance + RBF:
         d_M(u, v) = sqrt((u - v)^T Σ^{-1} (u - v))
         s(u, v)   = exp( - d_M(u, v)^2 / 2 ) = exp( - ((u - v)^T Σ^{-1} (u - v)) / 2 )
-    其中 Σ 用两张图在前三通道拼接后的经验协方差（加 eps*I 做稳定化）。
-    返回：对所有 (i,j) 的相似度取均值的 scalar tensor。
+    Σ is the empirical covariance of the two images after stitching together the first three channels (stabilized by adding eps*I).
+    Returns: A scalar tensor that takes the mean similarity over all (i,j) pairs.
     """
-    assert matrix1.shape == matrix2.shape and matrix1.dim() == 3 and matrix1.shape[0] == 4, "矩阵应为 (4, N, N)"
-    # 仅取前三个通道，并展平为 (N*N, 3)
+    assert matrix1.shape == matrix2.shape and matrix1.dim() == 3 and matrix1.shape[0] == 4, "Matrix should be (4, N, N)"
     m1 = matrix1[:3].reshape(3, -1).T  # (M, 3), M = N*N
     m2 = matrix2[:3].reshape(3, -1).T  # (M, 3)
-    # 估计协方差 Σ（对两者拼接后做经验协方差），并加 eps*I 保证可逆
+    # Estimate the covariance Σ (calculate the empirical covariance after concatenating the two), and add eps*I to ensure invertibility.
     X = torch.cat([m1, m2], dim=0)                    # (2M, 3)
     Xc = X - X.mean(dim=0, keepdim=True)              # 去均值
     cov = Xc.t().matmul(Xc) / max(Xc.shape[0] - 1, 1) # (3, 3)
     cov = cov + eps * torch.eye(3, dtype=X.dtype, device=X.device)
     inv_cov = torch.inverse(cov)
-    # 计算每个像素向量差的二次型 (u-v)^T Σ^{-1} (u-v)
+    # (u-v)^T Σ^{-1} (u-v)
     diff = m1 - m2                                    # (M, 3)
     quad = (diff @ inv_cov) * diff                    # (M, 3)
     dist2 = quad.sum(dim=1)                           # (M,)
-    # RBF 相似度，并对所有位置取平均
+    # RBF similarity, and averaged over all positions.
     sim = torch.exp(-0.5 * dist2)                     # (M,)
     return sim.mean()                                 # scalar tensor
 

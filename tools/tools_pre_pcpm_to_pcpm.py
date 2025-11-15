@@ -42,10 +42,10 @@ import MDAnalysis as mda
 from MDAnalysis.analysis import distances
 
 def map_native2casp(casp_seq: str, native_seq: str) -> List[Tuple[int,int]]:
-    if native_seq in casp_seq:                 # 最常见：纯子串
+    if native_seq in casp_seq:
         start = casp_seq.index(native_seq)
         return [(i, i+start) for i in range(len(native_seq))]
-    # 其余用全局比对（gap penalty 覆盖即可）
+    # The rest can be compared globally (gap penalty can be used to overwrite).
     alns = pairwise2.align.globalms(casp_seq, native_seq,
                                     2, -1, -5, -1, one_alignment_only=True)
     q, t = alns[0].seqA, alns[0].seqB   # casp, native
@@ -59,14 +59,12 @@ def map_native2casp(casp_seq: str, native_seq: str) -> List[Tuple[int,int]]:
 
 class OnlineMomentMasked:
     """
-    逐单元流式累积 1‑4 阶原始矩；finalize 输出:
         0 → mean
         1 → std  (√population variance)
         2 → skew  (E[z³])
         3 → excess kurtosis (E[z⁴] − 3)
-    与  scipy.stats.kurtosis(fisher=True, bias=True)  完全一致。
     
-    注意： kurt 计算还是错误的，不知道哪里错了，放弃
+    Note: The kurt calculation is still incorrect; I don't know where the error is, not using it.
     
     """
     __slots__ = ("count", "sum1", "sum2", "sum3", "sum4")
@@ -242,50 +240,43 @@ for CASP_ID in casp_ids:
     if not os.path.exists(output_dp):
         with open(decoys_pcpm_dp,'rb') as o:
             decoys_pcpm = pickle.load(o)
-        
-        
-        # ─────────────────────────────────────────────
-        # 2) 主循环：边遍历 decoy，边在线累加
-        # ─────────────────────────────────────────────
-        bins = np.linspace(0, 1, 33)              # 32 个 bin → idx 0..31
+        bins = np.linspace(0, 1, 33)              # 32 bins → idx 0..31
         all_keys = list(range(32)) + ["same_topo", "diff_topo","all"]
         
         # stats_accum[key][map_name] = OnlineMoment(...)
         stats_accum = {k: defaultdict(lambda: None) for k in all_keys}
-        native2casp  = map_native2casp(casp_seq, native_seq)   # 只做一次即可
+        native2casp  = map_native2casp(casp_seq, native_seq) 
         Lref = len(casp_seq)
         native_casp_idx = torch.tensor([j for _, j in native2casp], dtype=torch.long)
         for k, v in tqdm(decoys_pcpm.items()):
             casp_id   = k.split('_')[0]
             decoy_id  = '_'.join(k.split('_')[1:])          # {casp_id}_{decoy}
         
-            # —— 找到 tmscore ————————————————————————————
             sub_df = traintestval_df[traintestval_df.index == decoy_id]
             tmscore  = sub_df[sub_df['casp_id'] == casp_id]['tmscore'].item()
         
             bin_idx  = int(np.digitize(tmscore, bins[:-1], right=False) - 1)
             topo_key = "same_topo" if tmscore >= 0.5 else "diff_topo"
         
-
             for map_name in ['cadis', 'omg', 'phi', 'theta']:
-                small_vec = v[map_name]                # 1D 或 ndarray
-                Lsmall    = v['length']                # decoy 的残基数
+                small_vec = v[map_name]                # 1D or ndarray
+                Lsmall    = v['length']                # decoy residue number
                 small = tri_to_square(small_vec, Lsmall)
                 small_t = torch.as_tensor(small, dtype=torch.float32)
                 
                 small = tri_to_square(v[map_name], v['length'])      # (Ldecoy,Ldecoy)
                 big   = torch.full((Lref, Lref), torch.nan, dtype=torch.float32)
-                # 情况 A: decoy 长度 == Lref → 全长 1:1
+                # case A: decoy length == Lref → whole length 1:1
                 if Lsmall == Lref:
                     small_idx = torch.arange(Lref)               # 0..L-1
                     big_idx   = small_idx
-                # 情况 B: decoy 长度 == len(native_seq) → 用 native2casp
+                # case B: decoy length == len(native_seq) → use native2casp
                 elif Lsmall == len(native_seq):
-                    small_idx = torch.arange(Lsmall)             # decoy 索引
+                    small_idx = torch.arange(Lsmall)             # decoy index
                     big_idx   = native_casp_idx.clone()
                     
                 sub_small = small_t[small_idx.unsqueeze(1), small_idx.unsqueeze(0)]
-                # big[np.ix_(idx, idx)] = small                        # 写入子矩阵
+                # big[np.ix_(idx, idx)] = small        
                 big[big_idx.unsqueeze(1), big_idx.unsqueeze(0)] = sub_small    # (k,1) × (1,k)
                 mask = ~torch.isnan(big)
                 for key in (bin_idx, topo_key, "all"):
@@ -295,14 +286,11 @@ for CASP_ID in casp_ids:
                                                                         device=big.device)
                     stats_accum[key][map_name].update(big, mask.float())
                     
-        # ─────────────────────────────────────────────
-        # 3) 收尾：把 mean/std/skewness/kurtosis 计算出来
-        # ─────────────────────────────────────────────
         stats_dict = {}          # stats_dict[key][map_name] = 3×N×N
         for key, d in stats_accum.items():
             stats_dict[key] = {}
             for map_name, acc in d.items():
-                if acc is None:          # 该 bin 可能一个样本都没有
+                if acc is None:          # it is possible有
                     continue
                 stats_dict[key][map_name] = acc.finalize()
         stats_dict['casp_seq'] = casp_seq
