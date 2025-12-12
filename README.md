@@ -164,7 +164,7 @@ uv run python tools/tools_calculate_free_energy_landscape.py
 uv run python tools/tools_calculate_fel_overlpas.py --generated-file-path /mnt/dna01/library2/caspdynamics/generated_data 
 ```
 
-1.  Compute population coverage scores:
+2.  Compute the plausibilty scores (PCPM, PCPS, CGM, CGMS):
 
 ```bash
 # step 1, generate pcpm
@@ -178,6 +178,17 @@ uv run python tools/tools_pre_pcpm_to_pcpm.py # you need to modify the script
 # step 2, generate pcps
 uv run python tools/tools_pcpm_to_pcps.py # you need to modify the script
 
+# step 3, generate CGM
+uv run python tools/tools_pre_pcpm_to_CGM.py # you need to modify the script
+
+# step 4, generate CGMS
+uv run python tools/tools_CGM_to_CGMS.py # you need to modify the script
+```
+
+3.  Compute the Ramachandran outliers:
+
+```bash
+uv run python tools/tools_calculate_rama_outlier_rates.py # you need to modify the script
 ```
 
 ## Citation
