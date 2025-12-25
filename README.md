@@ -1,6 +1,6 @@
 # ProteinConformers
 
-Official repository for **ProteinConformers: Benchmark Dataset for Simulating Protein Conformational Landscape Diversity and Plausibility**.
+Official repository for **ProteinConformers: Benchmark Dataset for Simulating Protein Conformational Landscape Diversity and Plausibility** and **ProteinConformers: large-scale and energetically profiled descriptions of protein conformational landscapes**.
 
 ## Overview
 
